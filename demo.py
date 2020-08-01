@@ -20,7 +20,7 @@ sr = cv2.dnn_superres.DnnSuperResImpl_create()
 sr.readModel(model_path)
 sr.setModel(model_name, model_scale)
 
-cap = cv2.VideoCapture('test2.mp4')
+cap = cv2.VideoCapture('./video/test_input.mp4')
 if not cap.isOpened():
     print("ERROR: cannot open vidoe file")
     exit()
