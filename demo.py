@@ -1,17 +1,30 @@
 import cv2
 import numpy as np
+import time
 
 print('OpenCV version: ', cv2.__version__)
 
 def opencv_resize(imgfile):
     image = cv2.imread(imgfile)
     (h, w, _) = image.shape
+
+    time1 = time.perf_counter()
     img_area_x4 = cv2.resize(image, (w*4, h*4), interpolation=cv2.INTER_AREA)
+    time2 = time.perf_counter()
     cv2.imwrite('./image/out_area_x4.bmp', img_area_x4)
+    print('Resize INTER_AREA dur = %.4f ms' % ((time2-time1)*1000))
+
+    time3 = time.perf_counter()
     img_cubic_x4 = cv2.resize(image, (w*4, h*4), interpolation=cv2.INTER_CUBIC)
+    time4 = time.perf_counter()
     cv2.imwrite('./image/out_cubic_x4.bmp', img_cubic_x4)
+    print('Resize INTER_CUBIC dur = %.4f ms' % ((time4-time3)*1000))
+
+    time5 = time.perf_counter()
     img_lanczos_x4 = cv2.resize(image, (w*4, h*4), interpolation=cv2.INTER_LANCZOS4)
+    time6 = time.perf_counter()
     cv2.imwrite('./image/out_lanczos_x4.bmp', img_lanczos_x4)
+    print('Resize INTER_LANCZOS4 dur = %.4f ms' % ((time6-time5)*1000))
 
 def super_res_image(imgfile):
     image = cv2.imread(imgfile)
@@ -24,10 +37,12 @@ def super_res_image(imgfile):
         sr.readModel(model_path)
         sr.setModel(model_name, model_scale)
         print('Start %s ...' % model_name)
+        start = time.perf_counter()
         out_img = sr.upsample(image)
+        dur = time.perf_counter() - start
         outfile = './image/out-%s_x%d.bmp' % (model_name, model_scale)
         cv2.imwrite(outfile, out_img)
-        print('%dx upscaling with model = %s, output image = %s' % (model_scale, m, outfile))
+        print('%dx upscaling with model = %s, output image = %s, dur = %.4f ms' % (model_scale, m, outfile, dur*1000))
 
 def super_res_video(videofile, modelfile, frame_num=10):
     cap = cv2.VideoCapture(videofile)
@@ -58,7 +73,7 @@ opencv_resize(imgfile)
 super_res_image(imgfile)
 
 videofile = 'video/test_input.mp4'
-super_res_video(videofile, 'LapSRN_x4.pb')
+#super_res_video(videofile, 'LapSRN_x4.pb')
 
 
 print('done')
