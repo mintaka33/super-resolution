@@ -65,7 +65,7 @@ void infoIE(Core& ie, const string d)
 int main(int argc, char* argv[])
 {
     const string device = "CPU";
-    const string inputBlobName = "0";
+    const string lrinputBlobName = "0";
     const string bicInputBlobName = "1";
 
     Core ie;
@@ -83,11 +83,17 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    auto lrInputInfoItem = inputInfo[inputBlobName];
+    auto lrInputInfoItem = inputInfo[lrinputBlobName];
     int w = static_cast<int>(lrInputInfoItem->getTensorDesc().getDims()[3]);
     int h = static_cast<int>(lrInputInfoItem->getTensorDesc().getDims()[2]);
     int c = static_cast<int>(lrInputInfoItem->getTensorDesc().getDims()[1]);
-    printf("INFO: input buffer dim: w = %d, h = %d, c = %d\n", w, h, c);
+    printf("INFO: input1 buffer dim: w = %d, h = %d, c = %d\n", w, h, c);
+
+    auto bicInputInfoItem = inputInfo[bicInputBlobName];
+    int w2 = static_cast<int>(bicInputInfoItem->getTensorDesc().getDims()[3]);
+    int h2 = static_cast<int>(bicInputInfoItem->getTensorDesc().getDims()[2]);
+    int c2 = static_cast<int>(bicInputInfoItem->getTensorDesc().getDims()[1]);
+    printf("INFO: input2 buffer dim: w = %d, h = %d, c = %d\n", w2, h2, c2);
 
     OutputsDataMap outputInfo(network.getOutputsInfo());
     std::string firstOutputName;
@@ -102,12 +108,17 @@ int main(int argc, char* argv[])
         }
         item.second->setPrecision(Precision::FP32);
     }
+    auto outputInfoItem = outputInfo[firstOutputName];
+    int w3 = static_cast<int>(outputInfoItem->getTensorDesc().getDims()[3]);
+    int h3 = static_cast<int>(outputInfoItem->getTensorDesc().getDims()[2]);
+    int c3 = static_cast<int>(outputInfoItem->getTensorDesc().getDims()[1]);
+    printf("INFO: Output buffer dim: w = %d, h = %d, c = %d\n", w3, h3, c3);
 
     ExecutableNetwork executableNetwork = ie.LoadNetwork(network, device);
     InferRequest inferRequest = executableNetwork.CreateInferRequest();
 
     // low resoution input
-    Blob::Ptr lrInputBlob = inferRequest.GetBlob(inputBlobName);
+    Blob::Ptr lrInputBlob = inferRequest.GetBlob(lrinputBlobName);
     cv::Mat inputImg = cv::imread(inputImgFile, cv::IMREAD_COLOR);
     if (inputImg.empty()) {
         printf("ERROR: failed to load input impage file!\n");
@@ -118,8 +129,6 @@ int main(int argc, char* argv[])
     // high resolution input from bicubic up-scaling
     cv::Mat resizedImg;
     Blob::Ptr bicInputBlob = inferRequest.GetBlob(bicInputBlobName);
-    int w2 = bicInputBlob->getTensorDesc().getDims()[3];
-    int h2 = bicInputBlob->getTensorDesc().getDims()[2];
     cv::resize(inputImg, resizedImg, cv::Size(w2, h2), 0, 0, cv::INTER_CUBIC);
     matU8ToBlob<float_t>(resizedImg, bicInputBlob, 0);
 
@@ -132,8 +141,6 @@ int main(int argc, char* argv[])
     const auto outputData = outputBlobMapped.as<float*>();
     size_t numOfImages = outputBlob->getTensorDesc().getDims()[0];
     size_t numOfChannels = outputBlob->getTensorDesc().getDims()[1];
-    size_t h3 = outputBlob->getTensorDesc().getDims()[2];
-    size_t w3 = outputBlob->getTensorDesc().getDims()[3];
     size_t nunOfPixels = w3 * h3;
 
     printf("INFO: Output size [N,C,H,W]: %d, %d, %d, %d\n", numOfImages, numOfChannels, h3, w3);
