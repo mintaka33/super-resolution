@@ -47,7 +47,7 @@ void matU8ToBlob(const cv::Mat& orig_image, InferenceEngine::Blob::Ptr& blob, in
     }
 }
 
-void infoIE(Core& ie, const string d)
+void printIECoreInfo(Core& ie, const string d)
 {
     std::map<std::string, Version> vm =  ie.GetVersions(d);
     for(auto p : vm) {
@@ -70,7 +70,7 @@ int main(int argc, char* argv[])
 
     Core ie;
 
-    infoIE(ie, device);
+    printIECoreInfo(ie, device);
 
     auto network = ie.ReadNetwork(msr);
     network.setBatchSize(1);
@@ -114,7 +114,10 @@ int main(int argc, char* argv[])
     int c3 = static_cast<int>(outputInfoItem->getTensorDesc().getDims()[1]);
     printf("INFO: Output buffer dim: w = %d, h = %d, c = %d\n", w3, h3, c3);
 
+    // load network
     ExecutableNetwork executableNetwork = ie.LoadNetwork(network, device);
+
+    // create inference request
     InferRequest inferRequest = executableNetwork.CreateInferRequest();
 
     // low resoution input
