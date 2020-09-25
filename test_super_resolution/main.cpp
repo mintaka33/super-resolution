@@ -10,9 +10,6 @@
 using namespace std;
 using namespace InferenceEngine;
 
-string msr = "/home/fresh/data/model/single-image-super-resolution-1032.xml";
-string inputImgFile = "/home/fresh/data/work/decode_sr_encode/build/sr/test.png";
-
 template <typename T>
 void matU8ToBlob(const cv::Mat& orig_image, InferenceEngine::Blob::Ptr& blob, int batchIndex = 0) {
     InferenceEngine::SizeVector blobSize = blob->getTensorDesc().getDims();
@@ -62,8 +59,11 @@ void printIECoreInfo(Core& ie, const string d)
     }
 }
 
-int main(int argc, char* argv[])
+int test_sisr()
 {
+    string msr = "/home/fresh/data/model/single-image-super-resolution-1032.xml";
+    string inputImgFile = "/home/fresh/data/work/decode_sr_encode/build/sr/img_480x270.jpg";
+
     const string device = "CPU";
     const string lrinputBlobName = "0";
     const string bicInputBlobName = "1";
@@ -166,10 +166,17 @@ int main(int argc, char* argv[])
     
         cv::Mat resultImg;
         cv::merge(imgPlanes, resultImg);
-        std::string outImgName = std::string("sr_" + std::to_string(i + 1) + ".png");
+        std::string outImgName = std::string("img_480x270.out." + std::to_string(i + 1) + ".jpg");
         cv::imwrite(outImgName, resultImg);
     }
 
     printf("\nExecution done!\n");
+    return 0;
+}
+
+int main(int argc, char* argv[])
+{
+    test_sisr();
+
     return 0;
 }
