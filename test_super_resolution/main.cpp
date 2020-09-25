@@ -166,7 +166,102 @@ int test_sisr()
     
         cv::Mat resultImg;
         cv::merge(imgPlanes, resultImg);
-        std::string outImgName = std::string("img_480x270.out." + std::to_string(i + 1) + ".jpg");
+        std::string outImgName = std::string("img_480x270.sisr.out." + std::to_string(i + 1) + ".jpg");
+        cv::imwrite(outImgName, resultImg);
+    }
+
+    printf("\nExecution done!\n");
+    return 0;
+}
+
+int test_rcan()
+{
+    const string msr = "/home/fresh/data/model/rcan/rcan_360x640_scale2_resgroups5_resblocks8_feats64.xml";
+    const string inputImgFile = "/home/fresh/data/work/decode_sr_encode/build/sr/img_640x360.jpg";
+    const string device = "CPU";
+    const string lrinputBlobName = "0";
+
+    Core ie;
+
+    printIECoreInfo(ie, device);
+
+    auto network = ie.ReadNetwork(msr);
+    network.setBatchSize(1);
+
+    InputsDataMap inputInfo(network.getInputsInfo());
+    if (inputInfo.size() == 1) {
+        printf("INFO: network requires %d input\n", inputInfo.size());
+    } else {
+        printf("ERROR: The network topologies with 1 or 2 inputs only\n");
+        return -1;
+    }
+
+    auto lrInputInfoItem = inputInfo[lrinputBlobName];
+    int w = static_cast<int>(lrInputInfoItem->getTensorDesc().getDims()[3]);
+    int h = static_cast<int>(lrInputInfoItem->getTensorDesc().getDims()[2]);
+    int c = static_cast<int>(lrInputInfoItem->getTensorDesc().getDims()[1]);
+    printf("INFO: input1 buffer dim: w = %d, h = %d, c = %d\n", w, h, c);
+
+    OutputsDataMap outputInfo(network.getOutputsInfo());
+    std::string firstOutputName;
+    for (auto &item : outputInfo) {
+        if (firstOutputName.empty()) {
+            firstOutputName = item.first;
+        }
+        DataPtr outputData = item.second;
+        if (!outputData) {
+            printf("ERROR: output data pointer is not valid\n");
+            return -1;
+        }
+        item.second->setPrecision(Precision::FP32);
+    }
+    auto outputInfoItem = outputInfo[firstOutputName];
+    int w3 = static_cast<int>(outputInfoItem->getTensorDesc().getDims()[3]);
+    int h3 = static_cast<int>(outputInfoItem->getTensorDesc().getDims()[2]);
+    int c3 = static_cast<int>(outputInfoItem->getTensorDesc().getDims()[1]);
+    printf("INFO: Output buffer dim: w = %d, h = %d, c = %d\n", w3, h3, c3);
+
+    // load network
+    ExecutableNetwork executableNetwork = ie.LoadNetwork(network, device);
+
+    // create inference request
+    InferRequest inferRequest = executableNetwork.CreateInferRequest();
+
+    // low resoution input
+    Blob::Ptr lrInputBlob = inferRequest.GetBlob(lrinputBlobName);
+    cv::Mat inputImg = cv::imread(inputImgFile, cv::IMREAD_COLOR);
+    if (inputImg.empty()) {
+        printf("ERROR: failed to load input impage file!\n");
+        return -1;
+    }
+    matU8ToBlob<float_t>(inputImg, lrInputBlob, 0);
+
+    // do inference
+    inferRequest.Infer();
+
+    // process output
+    const Blob::Ptr outputBlob = inferRequest.GetBlob(firstOutputName);
+    LockedMemory<const void> outputBlobMapped = as<MemoryBlob>(outputBlob)->rmap();
+    const auto outputData = outputBlobMapped.as<float*>();
+    size_t numOfImages = outputBlob->getTensorDesc().getDims()[0];
+    size_t numOfChannels = outputBlob->getTensorDesc().getDims()[1];
+    size_t nunOfPixels = w3 * h3;
+
+    printf("INFO: Output size [N,C,H,W]: %d, %d, %d, %d\n", numOfImages, numOfChannels, h3, w3);
+
+    for (size_t i = 0; i < numOfImages; ++i) {
+        std::vector<cv::Mat> imgPlanes = std::vector<cv::Mat> {
+            cv::Mat(h3, w3, CV_32FC1, &(outputData[i * nunOfPixels * numOfChannels])),
+            cv::Mat(h3, w3, CV_32FC1, &(outputData[i * nunOfPixels * numOfChannels + nunOfPixels])),
+            cv::Mat(h3, w3, CV_32FC1, &(outputData[i * nunOfPixels * numOfChannels + nunOfPixels * 2]))
+        };
+
+        for (auto & img : imgPlanes)
+            img.convertTo(img, CV_8UC1, 255);
+    
+        cv::Mat resultImg;
+        cv::merge(imgPlanes, resultImg);
+        std::string outImgName = std::string("img_640x360.rcan.out." + std::to_string(i + 1) + ".jpg");
         cv::imwrite(outImgName, resultImg);
     }
 
@@ -176,7 +271,9 @@ int test_sisr()
 
 int main(int argc, char* argv[])
 {
-    test_sisr();
+    //test_sisr();
+
+    test_rcan();
 
     return 0;
 }
