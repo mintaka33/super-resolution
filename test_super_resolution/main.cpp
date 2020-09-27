@@ -77,7 +77,7 @@ int test_sisr()
 
     InputsDataMap inputInfo(network.getInputsInfo());
     if (inputInfo.size() == 1 || inputInfo.size() == 2) {
-        printf("INFO: network requires %d input\n", inputInfo.size());
+        printf("INFO: network requires %d input\n", (int)inputInfo.size());
     } else {
         printf("ERROR: The network topologies with 1 or 2 inputs only\n");
         return -1;
@@ -146,7 +146,7 @@ int test_sisr()
     size_t numOfChannels = outputBlob->getTensorDesc().getDims()[1];
     size_t nunOfPixels = w3 * h3;
 
-    printf("INFO: Output size [N,C,H,W]: %d, %d, %d, %d\n", numOfImages, numOfChannels, h3, w3);
+    printf("INFO: Output size [N,C,H,W]: %d, %d, %d, %d\n", (int)numOfImages, (int)numOfChannels, h3, w3);
 
     for (size_t i = 0; i < numOfImages; ++i) {
         std::vector<cv::Mat> imgPlanes;
@@ -190,7 +190,7 @@ int test_rcan()
 
     InputsDataMap inputInfo(network.getInputsInfo());
     if (inputInfo.size() == 1) {
-        printf("INFO: network requires %d input\n", inputInfo.size());
+        printf("INFO: network requires %d input\n", (int)inputInfo.size());
     } else {
         printf("ERROR: The network topologies with 1 or 2 inputs only\n");
         return -1;
@@ -213,7 +213,7 @@ int test_rcan()
             printf("ERROR: output data pointer is not valid\n");
             return -1;
         }
-        item.second->setPrecision(Precision::FP32);
+        //item.second->setPrecision(Precision::FP32);
     }
     auto outputInfoItem = outputInfo[firstOutputName];
     int w3 = static_cast<int>(outputInfoItem->getTensorDesc().getDims()[3]);
@@ -234,7 +234,7 @@ int test_rcan()
         printf("ERROR: failed to load input impage file!\n");
         return -1;
     }
-    matU8ToBlob<float_t>(inputImg, lrInputBlob, 0);
+    matU8ToBlob<float>(inputImg, lrInputBlob, 0);
 
     // do inference
     inferRequest.Infer();
@@ -245,9 +245,16 @@ int test_rcan()
     const auto outputData = outputBlobMapped.as<float*>();
     size_t numOfImages = outputBlob->getTensorDesc().getDims()[0];
     size_t numOfChannels = outputBlob->getTensorDesc().getDims()[1];
-    size_t nunOfPixels = w3 * h3;
+    size_t outblob_h = outputBlob->getTensorDesc().getDims()[2];
+    size_t outblob_w = outputBlob->getTensorDesc().getDims()[3];
+    size_t nunOfPixels = outblob_w * outblob_h;
 
-    printf("INFO: Output size [N,C,H,W]: %d, %d, %d, %d\n", numOfImages, numOfChannels, h3, w3);
+    if (outblob_h == h3 && outblob_w == w3) {
+        printf("INFO: Output size [N,C,H,W]: %d, %d, %d, %d\n", (int)numOfImages, (int)numOfChannels, h3, w3);
+    } else {
+        printf("ERROR: invalid output blob width/height\n");
+        return -1;
+    }
 
     for (size_t i = 0; i < numOfImages; ++i) {
         std::vector<cv::Mat> imgPlanes = std::vector<cv::Mat> {
@@ -257,7 +264,7 @@ int test_rcan()
         };
 
         for (auto & img : imgPlanes)
-            img.convertTo(img, CV_8UC1, 255);
+            img.convertTo(img, CV_8UC1);
     
         cv::Mat resultImg;
         cv::merge(imgPlanes, resultImg);
